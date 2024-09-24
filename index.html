@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Car Racing Game</title>
+    <style>
+        canvas {
+            display: block;
+            margin: 0 auto;
+            background: #333;
+        }
+    </style>
+</head>
+
+<body>
+    <canvas id="gameCanvas" width="400" height="600"></canvas>
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        const carWidth = 50;
+        const carHeight = 100;
+        const carBuffer = 20
+        const laneWidth = canvas.width / 3;
+        const numberOfLanes = 3;
+        const finishline = -5000;
+        var lanes=null;
+        //const lane = 
+
+        var playerCar = {
+
+        };
+
+        function createLane(id) {
+            return {
+                id: id,
+                speed: Math.floor(Math.random() * 3) + 1,
+                cars: [],
+                last_car_y: -0
+            }
+        }
+
+        const maxOtherCars = 50;
+        const otherCarSpeed = 1;
+
+        var gamegoing = false;
+        var initialized = false;
+
+        function init() {
+            let laneid = Math.floor(Math.random() * 3);
+            playerCar = {
+                id: laneid,
+                x: laneid * laneWidth + (laneWidth - carWidth) / 2,
+                y: canvas.height - carHeight - 50,
+                width: carWidth,
+                height: carHeight,
+                speed: 5,
+                color: "blue"
+            };
+            //
+
+
+            //otherCars = [];
+            createOtherCars();
+            createFinishLine();
+
+            gamegoing = true;
+            initialized = true;
+
+            update();
+
+        }
+
+        function drawCar(car) {
+            ctx.fillStyle = car.color;
+            ctx.fillRect(car.x, car.y, car.width, car.height);
+        }
+
+        function createFinishLine() {
+            let finish = createLane('finish');
+            finish.speed = playerCar.speed;
+
+            finish.cars.push(
+                {
+                    x: 0,
+                    y: finishline,
+                    width: canvas.width,
+                    height: 2,
+                    //speed: otherCarSpeed + Math.random() * 2
+                    speed: finish.speed,
+                    color: "grey"
+
+                }
+            )
+
+            lanes.push(finish);
+
+        }
+        function createOtherCars() {
+
+            lanes = Array(numberOfLanes);
+            for (let i = 0; i < maxOtherCars; i++) {
+                let lane = createLane(Math.floor(Math.random() * 3));
+                if (lanes[lane.id])
+                    lane = lanes[lane.id];
+                else
+                    lanes[lane.id] = lane;
+
+                let car = {
+                    x: lane.id * laneWidth + (laneWidth - carWidth) / 2,
+                    y: (lane.last_car_y + carBuffer) - carHeight - Math.random() * canvas.height,
+                    width: carWidth,
+                    height: carHeight,
+                    //speed: otherCarSpeed + Math.random() * 2
+                    speed: lane.speed + Math.random() * 3,
+                    color: "red"
+                };
+                lane.cars.push(car);
+                lane.last_car_y = car.y
+                console.log(`Creating a car (attempt ${i + 1}\nlanes: ${JSON.stringify(lanes)}}`)
+            }
+        }
+
+        // Function to check for collision between two rectangles
+        function isColliding(rect1, rect2) {
+            return rect1.x < rect2.x + rect2.width &&
+                rect1.x + rect1.width > rect2.x &&
+                rect1.y < rect2.y + rect2.height &&
+                rect1.y + rect1.height > rect2.y;
+        }
+
+        function update() {
+
+            if (gamegoing) {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                drawCar(playerCar, 'blue');
+
+                lanes.forEach(lane => {
+
+                    console.log(`Drawing objects for lane: ${lane.id}/n${JSON.stringify(lane)}`)
+
+                    lane.cars.forEach(car => {
+                        switch (lane.id) {
+                            case "finish":
+                                car.y += playerCar.speed;
+                                break;
+                            default:
+                                car.y += lane.speed;
+                        }
+
+                        /*
+                        if (car.y > canvas.height) {
+                            //car.y = -carHeight;
+                            //car.speed = otherCarSpeed + Math.random() * 2;
+                        }
+*/
+                        drawCar(car);
+
+                        if (isColliding(car, playerCar)) {
+                            gamegoing = false;
+                            initialized = false;
+                            switch(lane.id){
+                                case "finish":
+                                    console.log("Finished!")
+                                    break;
+                                default:
+                                console.log("Collision detected!");
+                            }
+                        
+                            
+                        }
+
+
+                    });
+
+                })
+
+                requestAnimationFrame(update);
+
+            }
+
+            console.log(`gamegoing: ${gamegoing}`)
+        }
+
+        function movePlayerCar(event) {
+            /*
+            if (event.key === 'ArrowLeft' && playerCar.x > 0) {
+                playerCar.x -= laneWidth;
+            } else if (event.key === 'ArrowRight' && playerCar.x < canvas.width - laneWidth) {
+                playerCar.x += laneWidth;
+            }
+*/
+            switch (event.code) {
+                case 'ArrowLeft':
+                    if (playerCar.x > 0 && playerCar.x >= laneWidth) {
+                        playerCar.x -= laneWidth;
+                        playerCar.id--;
+                    }
+
+                    break;
+                case 'ArrowRight':
+                    if (playerCar.x < canvas.width - laneWidth) {
+                        playerCar.x += laneWidth;
+                        playerCar.id++;
+                    }
+
+                    break;
+                case "ArrowUp":
+                    lanes.forEach(lane => {
+                        //if (lane.id != playerCar.id)
+                        lane.speed += 0.5
+                    })
+                    //playerCar.y -= 10;
+
+                    break;
+                case "ArrowDown":
+                    lanes.forEach(lane => {
+                        //   if (lane.id != playerCar.id)
+                        lane.speed -= 0.5
+                    })
+                    //playerCar.y += 10;
+                    break;
+
+                case 'Space':
+                    init();
+                    break;
+                case "Escape":
+                    if (initialized) {
+                        switch (gamegoing) {
+                            case true:
+                                gamegoing = false;
+                                console.log('Game on pause')
+                                break;
+                            case false:
+                                gamegoing = true;
+                                update();
+                                console.log("Game is resumed")
+                        }
+                    };
+                default:
+                    console.log(`event.key: ${event.code}`)
+
+            }
+        }
+
+        document.addEventListener('keydown', movePlayerCar);
+
+
+        // createOtherCars();
+        // update();
+    </script>
+</body>
+
+</html>
