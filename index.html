@@ -16,17 +16,55 @@
 
 <body>
     <canvas id="gameCanvas" width="400" height="600"></canvas>
+
+    <!--div id="stage">
+        <canvas id="background-layer" width="400" height="600"></canvas>
+        <canvas id="gameCanvas" width="400" height="600"></canvas>
+        <canvas id="ui-layer" width="400" height="600"></canvas>
+      </div>
+      
+      <style>
+        #stage {
+          width: 400px;
+          height: 600px;
+          position: relative;
+          border: 2px solid black;
+        }
+        canvas {
+          position: absolute;
+        }
+        #background-layer {
+          z-index: 1;
+        }
+        #game-layer {
+          z-index: 2;
+        }
+        #ui-layer {
+          z-index: 3;
+        }
+      </style-->
+
     <script>
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
 
         const carWidth = 50;
-        const carHeight = 100;
-        const carBuffer = 20
-        const laneWidth = canvas.width / 3;
-        const numberOfLanes = 3;
+        const carHeight = 75;
+        const carBuffer = 50
+        const numberOfLanes = 4;
+        const laneWidth = canvas.width / numberOfLanes;
         const finishline = -5000;
-        var lanes=null;
+        const initYmin = canvas.height - carHeight - carBuffer;
+        const initYmax = carBuffer;
+        const shift_x=laneWidth;
+        const shift_y=20;
+        const shift_speed=0.5
+
+        
+        const maxOtherCars = 40;
+        const otherCarSpeed = 1
+        var lanes = null;
+        var startTime, endTime;
         //const lane = 
 
         var playerCar = {
@@ -36,24 +74,26 @@
         function createLane(id) {
             return {
                 id: id,
-                speed: Math.floor(Math.random() * 3) + 1,
+                //speed: Math.floor(Math.random() * 3) / 2 + 2,
+                speed: id + 1,
                 cars: [],
                 last_car_y: -0
             }
         }
 
-        const maxOtherCars = 50;
-        const otherCarSpeed = 1;
+;
 
         var gamegoing = false;
         var initialized = false;
 
         function init() {
+            startTime = Date.now();
+
             let laneid = Math.floor(Math.random() * 3);
             playerCar = {
                 id: laneid,
                 x: laneid * laneWidth + (laneWidth - carWidth) / 2,
-                y: canvas.height - carHeight - 50,
+                y: initYmin,
                 width: carWidth,
                 height: carHeight,
                 speed: 5,
@@ -102,7 +142,7 @@
 
             lanes = Array(numberOfLanes);
             for (let i = 0; i < maxOtherCars; i++) {
-                let lane = createLane(Math.floor(Math.random() * 3));
+                let lane = createLane(Math.floor(Math.random() * numberOfLanes));
                 if (lanes[lane.id])
                     lane = lanes[lane.id];
                 else
@@ -110,7 +150,7 @@
 
                 let car = {
                     x: lane.id * laneWidth + (laneWidth - carWidth) / 2,
-                    y: (lane.last_car_y + carBuffer) - carHeight - Math.random() * canvas.height,
+                    y: (lane.last_car_y - carBuffer) - carHeight - Math.random() * canvas.height,
                     width: carWidth,
                     height: carHeight,
                     //speed: otherCarSpeed + Math.random() * 2
@@ -137,19 +177,22 @@
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
 
                 drawCar(playerCar, 'blue');
+                console.log(`Drawing objects for playerCar: speed:${playerCar.speed}, y:${playerCar.y}`)
 
                 lanes.forEach(lane => {
 
-                    console.log(`Drawing objects for lane: ${lane.id}/n${JSON.stringify(lane)}`)
+                    
 
                     lane.cars.forEach(car => {
                         switch (lane.id) {
                             case "finish":
                                 car.y += playerCar.speed;
+                                
                                 break;
                             default:
                                 car.y += lane.speed;
                         }
+                        console.log(`Drawing objects for lane: ${lane.id}, speed:${lane.speed}, y:${car.y}`)
 
                         /*
                         if (car.y > canvas.height) {
@@ -162,15 +205,22 @@
                         if (isColliding(car, playerCar)) {
                             gamegoing = false;
                             initialized = false;
-                            switch(lane.id){
+                            switch (lane.id) {
                                 case "finish":
                                     console.log("Finished!")
+                                    //console.log(`Finished in: ${Date.now() - startTime}`)
                                     break;
                                 default:
-                                console.log("Collision detected!");
+                                    console.log("Collision detected!");
+
                             }
-                        
-                            
+                            console.log(`Finished in: ${Date.now() - startTime}`)
+                            ctx.font = '20px Arial bold';
+                            ctx.fillStyle = 'white'
+
+                            // Draw text on the canvas
+                            ctx.fillText(`Finished in: ${Date.now() - startTime}`, 100, 50);
+
                         }
 
 
@@ -196,14 +246,16 @@
             switch (event.code) {
                 case 'ArrowLeft':
                     if (playerCar.x > 0 && playerCar.x >= laneWidth) {
-                        playerCar.x -= laneWidth;
+                        //playerCar.x -= laneWidth;
+                        playerCar.x-=shift_x
                         playerCar.id--;
                     }
 
                     break;
                 case 'ArrowRight':
                     if (playerCar.x < canvas.width - laneWidth) {
-                        playerCar.x += laneWidth;
+                        //playerCar.x += laneWidth;
+                        playerCar.x+=shift_x
                         playerCar.id++;
                     }
 
@@ -211,17 +263,33 @@
                 case "ArrowUp":
                     lanes.forEach(lane => {
                         //if (lane.id != playerCar.id)
-                        lane.speed += 0.5
+                        lane.speed += shift_speed
+                        
                     })
-                    //playerCar.y -= 10;
+                    playerCar.speed+=shift_speed
+                    if (playerCar.y > initYmax)
+                        playerCar.y -= shift_y;
+                    else
+                        playerCar.y = initYmax;
+
 
                     break;
                 case "ArrowDown":
                     lanes.forEach(lane => {
                         //   if (lane.id != playerCar.id)
-                        lane.speed -= 0.5
+                        lane.speed -= shift_speed
+                        
                     })
-                    //playerCar.y += 10;
+                    playerCar.speed-=shift_speed
+                    if (playerCar.y < initYmin)
+                        playerCar.y += shift_y;
+                    else
+                        playerCar.y = initYmin;
+
+                    console.log(`playerCar.y:${playerCar.y}, initYmin:${initY}`)
+
+
+
                     break;
 
                 case 'Space':
