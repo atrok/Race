@@ -15,38 +15,46 @@
 </head>
 
 <body>
-    <canvas id="gameCanvas" width="400" height="600"></canvas>
+    <!--canvas id="gameCanvas" width="400" height="500"></canvas-->
 
-    <!--div id="stage">
-        <canvas id="background-layer" width="400" height="600"></canvas>
-        <canvas id="gameCanvas" width="400" height="600"></canvas>
+    <div id="stage">
+        <!--canvas id="background-layer" width="400" height="600"></canvas-->
+        <canvas id="gameCanvas" width="400" height="550"></canvas>
         <canvas id="ui-layer" width="400" height="600"></canvas>
-      </div>
-      
-      <style>
+    </div>
+    <div id="info">Press Space to start</div>
+
+    <style>
         #stage {
-          width: 400px;
-          height: 600px;
-          position: relative;
-          border: 2px solid black;
+            width: 400px;
+            height: 600px;
+            position: relative;
+            border: 2px solid black;
         }
+
         canvas {
-          position: absolute;
+            position: absolute;
         }
+
         #background-layer {
-          z-index: 1;
+            z-index: 1;
         }
-        #game-layer {
-          z-index: 2;
+
+        #gameCanvas {
+            z-index: 3;
         }
+
         #ui-layer {
-          z-index: 3;
+            z-index: 2;
+            background: #000fff;
         }
-      </style-->
+    </style>
 
     <script>
-        const canvas = document.getElementById('gameCanvas');
-        const ctx = canvas.getContext('2d');
+        const canvas = document.getElementById("gameCanvas");
+        const ui = document.getElementById("ui-layer");
+        const ctx = canvas.getContext("2d");
+        const ctx_ui = ui.getContext("2d");
 
         const carWidth = 50;
         const carHeight = 75;
@@ -56,11 +64,11 @@
         const finishline = -5000;
         const initYmin = canvas.height - carHeight - carBuffer;
         const initYmax = carBuffer;
-        const shift_x=laneWidth;
-        const shift_y=20;
-        const shift_speed=0.5
+        const shift_x = laneWidth;
+        const shift_y = 20;
+        const shift_speed = 0.5
 
-        
+
         const maxOtherCars = 40;
         const otherCarSpeed = 1
         var lanes = null;
@@ -68,7 +76,6 @@
         //const lane = 
 
         var playerCar = {
-
         };
 
         function createLane(id) {
@@ -81,7 +88,7 @@
             }
         }
 
-;
+        ;
 
         var gamegoing = false;
         var initialized = false;
@@ -97,7 +104,9 @@
                 width: carWidth,
                 height: carHeight,
                 speed: 5,
-                color: "blue"
+                //color: "blue",
+                img: "../Race/files/images/PNG/Cars/car_blue_small_1.png"
+
             };
             //
 
@@ -114,8 +123,11 @@
         }
 
         function drawCar(car) {
-            ctx.fillStyle = car.color;
-            ctx.fillRect(car.x, car.y, car.width, car.height);
+            //ctx.fillStyle = car.color;
+            //ctx.fillRect(car.x, car.y, car.width, car.height);
+            let img = new Image()
+            img.src = car.img;
+            ctx.drawImage(img, car.x, car.y)
         }
 
         function createFinishLine() {
@@ -130,7 +142,8 @@
                     height: 2,
                     //speed: otherCarSpeed + Math.random() * 2
                     speed: finish.speed,
-                    color: "grey"
+                    color: "grey",
+                    //img: "../Race/files/images/PNG/Cars/car_black_small_1.png"
 
                 }
             )
@@ -155,7 +168,8 @@
                     height: carHeight,
                     //speed: otherCarSpeed + Math.random() * 2
                     speed: lane.speed + Math.random() * 3,
-                    color: "red"
+                    color: "red",
+                    img: "../Race/files/images/PNG/Cars/car_black_small_1.png"
                 };
                 lane.cars.push(car);
                 lane.last_car_y = car.y
@@ -181,13 +195,13 @@
 
                 lanes.forEach(lane => {
 
-                    
+
 
                     lane.cars.forEach(car => {
                         switch (lane.id) {
                             case "finish":
                                 car.y += playerCar.speed;
-                                
+
                                 break;
                             default:
                                 car.y += lane.speed;
@@ -247,7 +261,7 @@
                 case 'ArrowLeft':
                     if (playerCar.x > 0 && playerCar.x >= laneWidth) {
                         //playerCar.x -= laneWidth;
-                        playerCar.x-=shift_x
+                        playerCar.x -= shift_x
                         playerCar.id--;
                     }
 
@@ -255,7 +269,7 @@
                 case 'ArrowRight':
                     if (playerCar.x < canvas.width - laneWidth) {
                         //playerCar.x += laneWidth;
-                        playerCar.x+=shift_x
+                        playerCar.x += shift_x
                         playerCar.id++;
                     }
 
@@ -264,9 +278,9 @@
                     lanes.forEach(lane => {
                         //if (lane.id != playerCar.id)
                         lane.speed += shift_speed
-                        
+
                     })
-                    playerCar.speed+=shift_speed
+                    playerCar.speed += shift_speed
                     if (playerCar.y > initYmax)
                         playerCar.y -= shift_y;
                     else
@@ -278,15 +292,15 @@
                     lanes.forEach(lane => {
                         //   if (lane.id != playerCar.id)
                         lane.speed -= shift_speed
-                        
+
                     })
-                    playerCar.speed-=shift_speed
+                    playerCar.speed -= shift_speed
                     if (playerCar.y < initYmin)
                         playerCar.y += shift_y;
                     else
                         playerCar.y = initYmin;
 
-                    console.log(`playerCar.y:${playerCar.y}, initYmin:${initY}`)
+                    console.log(`playerCar.y:${playerCar.y}, initYmin:${initYmin}`)
 
 
 
