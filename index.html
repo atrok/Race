@@ -20,24 +20,20 @@
             left: 10px;
             z-index: 4;
             font-style: 24px bold #FFF;
-
-
-
         }
-    </style>
-</head>
 
-<body>
-    <!--canvas id="gameCanvas" width="400" height="500"></canvas-->
+        #result {
+            position: absolute;
+            width: 200px;
+            height: 100px;
+            top: 200px;
+            left: 156px;
+            z-index: 4;
+            border: 10px solid #FFF;
+            background: blanchedalmond;
+            display: none;
+        }
 
-    <div id="stage">
-        <!--canvas id="background-layer" width="400" height="600"></canvas-->
-        <canvas id="gameCanvas" width="512" height="550"></canvas>
-        <canvas id="ui-layer" width="512" height="600"></canvas>
-    </div>
-    <div id="info">Press Space to start</div>
-
-    <style>
         #stage {
             width: 512px;
             height: 600px;
@@ -62,6 +58,20 @@
             background: #000fff;
         }
     </style>
+</head>
+
+<body>
+    <!--canvas id="gameCanvas" width="400" height="500"></canvas-->
+
+    <div id="stage">
+        <!--canvas id="background-layer" width="400" height="600"></canvas-->
+        <canvas id="gameCanvas" width="512" height="550"></canvas>
+        <canvas id="ui-layer" width="512" height="600"></canvas>
+    </div>
+    <div id="result">Monsson here</div>
+    <div id="info">Press Space to start</div>
+
+
 
     <script>
         const canvas = document.getElementById("gameCanvas");
@@ -153,6 +163,7 @@
             lanes = Array(numberOfLanes);
             bg_objects = new Array();
             updateObjectsInOrder = new Array();
+            visibilityOff("result");
 
             // order is important since other objects rely on playercar to get the speed
             createPlayerCar();
@@ -447,7 +458,9 @@
                     break;
 
                 case 'Space':
-                    init();
+                gamegoing = false;
+                initialized=false;
+                   setTimeout( init, 100);
                     break;
                 case "Escape":
                     if (initialized) {
@@ -455,11 +468,14 @@
                             case true:
                                 gamegoing = false;
                                 console.log('Game on pause')
+                                result.textContent = `Paused\nPress Esc to unpause`;
+                    visibilityOn("result");
                                 break;
                             case false:
                                 gamegoing = true;
                                 update();
                                 console.log("Game is resumed")
+                                visibilityOff("result");
                         }
                     };
                 default:
@@ -478,23 +494,41 @@
                     initialized = true;
                     break;
                 case "othercar":
-                    console.log(`Collision detected with ${JSON.stringify(event.detail)}`)
-                    console.log(`Crashed in: ${finishtime} sec`)
-                    ctx.fillText(`Crashed in: ${finishtime} sec`, 100, 50);
+                    console.log(`Collision detected with ${JSON.stringify(event.detail)}`);
+                    //console.log(`Crashed in: ${finishtime} sec`);
+                    result.textContent = `Crashed in: ${finishtime} sec`;
+                    visibilityOn("result");
                     break;
                 case "finishline":
 
-                    ctx.font = '20px Arial bold';
-                    ctx.fillStyle = 'white'
+                    //ctx.font = '20px Arial bold';
+                    //ctx.fillStyle = 'white'
 
                     // Draw text on the canvas
-                    bestTime = (finishtime < bestTime||bestTime==0) ? finishtime : bestTime;
+                    bestTime = (finishtime < bestTime || bestTime == 0) ? finishtime : bestTime;
 
-                    ctx.fillText(`Finished in: ${finishtime} sec`, 100, 50);
+                    //ctx.fillText(`Finished in: ${finishtime} sec`, 100, 50);
+                    result.textContent = `Finished in: ${finishtime} sec`;
+                    visibilityOn("result");
                     break;
 
             }
 
+        }
+
+        function visibilityOn(name) {
+            var div = document.getElementById(name);
+
+                div.style.display = "block";
+            
+
+        }
+
+        function visibilityOff(name) {
+            var div = document.getElementById(name);
+
+                div.style.display = "none";
+            
         }
 
         document.addEventListener('keydown', movePlayerCar);
