@@ -31,7 +31,7 @@
             z-index: 4;
             border: 10px solid #FFF;
             background: blanchedalmond;
-            display: none;
+            display: block;
         }
 
         #stage {
@@ -68,7 +68,7 @@
         <canvas id="gameCanvas" width="512" height="550"></canvas>
         <canvas id="ui-layer" width="512" height="600"></canvas>
     </div>
-    <div id="result">Monsson here</div>
+    <div id="result">Press Space to start</div>
     <div id="info">Press Space to start</div>
 
 
@@ -84,7 +84,6 @@
         const carBuffer = 50
         const numberOfLanes = 4;
         const laneWidth = canvas.width / numberOfLanes;
-        const finishline = -10000;
         const initYmin = canvas.height - carHeight - carBuffer;
         const initYmax = carBuffer;
         const shift_x = laneWidth;
@@ -92,14 +91,18 @@
         const shift_speed = 0.5;
         const maxSpeed = 10;
         const minSpeed = 0;
-
-
-        const maxOtherCars = 50;
         const otherCarSpeed = 1
+        
+
+        var maxOtherCars = 0;
+        var finishline = 0;
+        
         var lanes = [];
         var bg_objects = [];
         var updateObjectsInOrder = [];
         var playerCar = null;
+        var level = 1;
+        var life = 3;
 
         //const lane = 
 
@@ -159,6 +162,9 @@
         var initialized = false;
 
         function init() {
+            maxOtherCars = level * 20;
+            finishline = -level * 1000;
+
             startTime = Date.now();
             lanes = Array(numberOfLanes);
             bg_objects = new Array();
@@ -395,7 +401,7 @@
                 playerCar.drawImage(ctx);
                 let sp = playerCar.speed * 12;
                 maxSpeedStat = (sp > maxSpeedStat) ? sp : maxSpeedStat
-                info.textContent = `Speed: ${playerCar.speed * 12} mph, max speed: ${maxSpeedStat}, best time:${bestTime} sec`
+                info.textContent = `Speed: ${playerCar.speed * 12}mph, max speed: ${maxSpeedStat}mph, best time:${bestTime} sec, lifes:${life}, level:${level}`
                 console.log(`gamegoing: ${gamegoing}`)
                 requestAnimationFrame(update);
             }
@@ -458,9 +464,11 @@
                     break;
 
                 case 'Space':
-                gamegoing = false;
-                initialized=false;
-                   setTimeout( init, 100);
+                    gamegoing = false;
+                    initialized = false;
+                    result.textContent = `Level ${level}`
+                    visibilityOn("result");
+                    setTimeout(init, 1000);
                     break;
                 case "Escape":
                     if (initialized) {
@@ -469,7 +477,7 @@
                                 gamegoing = false;
                                 console.log('Game on pause')
                                 result.textContent = `Paused\nPress Esc to unpause`;
-                    visibilityOn("result");
+                                visibilityOn("result");
                                 break;
                             case false:
                                 gamegoing = true;
@@ -497,6 +505,10 @@
                     console.log(`Collision detected with ${JSON.stringify(event.detail)}`);
                     //console.log(`Crashed in: ${finishtime} sec`);
                     result.textContent = `Crashed in: ${finishtime} sec`;
+                    
+                    (life==0)?life=3:life--
+                    (life==0)? level=1 : level;
+
                     visibilityOn("result");
                     break;
                 case "finishline":
@@ -505,6 +517,7 @@
                     //ctx.fillStyle = 'white'
 
                     // Draw text on the canvas
+                    level++;
                     bestTime = (finishtime < bestTime || bestTime == 0) ? finishtime : bestTime;
 
                     //ctx.fillText(`Finished in: ${finishtime} sec`, 100, 50);
@@ -519,16 +532,16 @@
         function visibilityOn(name) {
             var div = document.getElementById(name);
 
-                div.style.display = "block";
-            
+            div.style.display = "block";
+
 
         }
 
         function visibilityOff(name) {
             var div = document.getElementById(name);
 
-                div.style.display = "none";
-            
+            div.style.display = "none";
+
         }
 
         document.addEventListener('keydown', movePlayerCar);
