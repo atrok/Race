@@ -9,7 +9,20 @@
         canvas {
             display: block;
             margin: 0 auto;
-            background: #333;
+            background: #A6C9CB;
+        }
+
+        #info {
+            position: absolute;
+            width: 400px;
+            height: 50px;
+            top: 560px;
+            left: 10px;
+            z-index: 4;
+            font-style: 24px bold #FFF;
+
+
+
         }
     </style>
 </head>
@@ -19,14 +32,14 @@
 
     <div id="stage">
         <!--canvas id="background-layer" width="400" height="600"></canvas-->
-        <canvas id="gameCanvas" width="400" height="550"></canvas>
-        <canvas id="ui-layer" width="400" height="600"></canvas>
+        <canvas id="gameCanvas" width="512" height="550"></canvas>
+        <canvas id="ui-layer" width="512" height="600"></canvas>
     </div>
     <div id="info">Press Space to start</div>
 
     <style>
         #stage {
-            width: 400px;
+            width: 512px;
             height: 600px;
             position: relative;
             border: 2px solid black;
@@ -56,27 +69,217 @@
         const ctx = canvas.getContext("2d");
         const ctx_ui = ui.getContext("2d");
 
-        const carWidth = 50;
-        const carHeight = 75;
+        const carWidth = 40;
+        const carHeight = 70;
         const carBuffer = 50
         const numberOfLanes = 4;
         const laneWidth = canvas.width / numberOfLanes;
-        const finishline = -5000;
+        const finishline = -10000;
         const initYmin = canvas.height - carHeight - carBuffer;
         const initYmax = carBuffer;
         const shift_x = laneWidth;
         const shift_y = 20;
-        const shift_speed = 0.5
+        const shift_speed = 0.5;
+        const maxSpeed = 10;
+        const minSpeed = 0;
 
 
-        const maxOtherCars = 40;
+        const maxOtherCars = 50;
         const otherCarSpeed = 1
-        var lanes = null;
-        var startTime, endTime;
+        var lanes = [];
+        var bg_objects = [];
+        var updateObjectsInOrder = [];
+        var playerCar = null;
+
         //const lane = 
 
-        var playerCar = {
-        };
+        /* game session stats */
+        var startTime, endTime;
+        var bestTime = 0;
+        var maxSpeedStat = 0;
+        var timeToTarget = function (dist, speed) {
+            return Math.ceil((Math.abs(dist) - (canvas.height + carHeight + carBuffer)) / speed * 60)
+        }
+
+
+        const gameObjects = {
+            "playerCar": {
+                src: "files/images/PNG/Cars/car_blue_small_1.png",
+            },
+            "otherCars": {
+                src: "files/images/PNG/Cars/car_black_small_1.png"
+            },
+            "background": {
+                src: [
+                    "files/images/PNG/Tiles/Asphalt road/road_asphalt21.png",
+                    "files/images/PNG/Tiles/Asphalt road/road_asphalt22.png",
+                    "files/images/PNG/Tiles/Asphalt road/road_asphalt22.png",
+                    "files/images/PNG/Tiles/Asphalt road/road_asphalt23.png",
+                ]
+            },
+            "finishline": {
+                src: "files/images/PNG/Objects/finishline.png"
+            }
+
+        }
+
+
+
+        const events = {
+            "collision": function (obj) {
+                let e = new CustomEvent("collision", {
+                    bubbles: true,
+                    detail: obj
+                })
+                return e;
+
+            }
+
+        }
+
+        const background = [
+            "files/images/PNG/Tiles/Asphalt road/road_asphalt21.png",
+            "files/images/PNG/Tiles/Asphalt road/road_asphalt22.png",
+            "files/images/PNG/Tiles/Asphalt road/road_asphalt22.png",
+            "files/images/PNG/Tiles/Asphalt road/road_asphalt23.png",
+        ];
+
+
+        var gamegoing = false;
+        var initialized = false;
+
+        function init() {
+            startTime = Date.now();
+            lanes = Array(numberOfLanes);
+            bg_objects = new Array();
+            updateObjectsInOrder = new Array();
+
+            // order is important since other objects rely on playercar to get the speed
+            createPlayerCar();
+            createBackground();
+            createFinishLine();
+            createOtherCars();
+
+
+            gamegoing = true;
+            initialized = true;
+
+            update();
+
+        }
+
+
+        function createCarObject(type, id, x, y, width, height, speed, img_src, shiftx, shifty, fn) {
+
+            let img = new Image();
+            img.src = img_src;
+
+            return {
+                type: type,
+                id: id,
+                x: x,
+                y: y,
+                width: width,
+                height: height,
+                speed: speed,
+                //color: "blue",
+                img: img,
+                shiftx: (shiftx) ? shiftx : 0,
+                shifty: (shifty) ? shifty : 0,
+
+                drawImage: (fn) ? fn : function (ctx) {
+
+                    this.changeSpeed();
+
+                    if (this.y >= -this.height || this.y < canvas.heigth + this.height) // to avoid unnescessary drawing operation
+                        ctx.drawImage(this.img, this.x + this.shiftx, this.y + this.shifty)
+                },
+                changeSpeed: function (speed) {
+                    let lane = lanes[this.id];
+
+                    if (speed)
+                        this.y += speed
+                    else
+
+                        this.y += lane.speed
+
+                }
+            };
+        }
+
+        function createBackground() {
+            //bg_objects = [];
+
+            background.forEach((src, ind) => {
+
+                let imgH = Math.ceil(canvas.height / 128) + 1;
+                let lane = createLane(`bg${ind}`);
+                lane.speed = playerCar.speed;
+                let y = -128;
+                let x
+
+                for (let i = 0; i < imgH; i++) {
+
+                    lane.cars.push(
+                        createCarObject(
+                            "background",
+                            i, //id
+                            ind * 128, //x
+                            (i * 128),//y
+                            128,//width
+                            128,//heigth
+                            //speed: otherCarSpeed + Math.random() * 2
+                            lane.speed, //speed
+                            //color: "grey", 
+                            src,//
+                            0,
+                            (i * 128) - 128,
+                            function (ctx, sx, sy) {
+                                /*
+                                                                if (sx)
+                                                                    this.shiftx = sx;
+                                                                if (sy)
+                                                                    this.shifty = sy;
+                                                                    */
+                                this.y = ((this.y + playerCar.speed * 1.99) % this.height + this.height) % this.height;// it effectively makes the image y to go in the loop
+
+                                ctx.drawImage(this.img, this.x + this.shiftx, this.y + this.shifty)
+                            }
+
+
+                        )
+                    )
+
+                }
+
+                bg_objects.push(lane);
+            })
+            //return lanes;
+
+            updateObjectsInOrder.push(bg_objects)
+
+
+        }
+
+        function createPlayerCar() {
+            let laneid = Math.floor(Math.random() * 3);
+            playerCar = createCarObject(
+                "playerCar",
+                laneid,
+                laneid * laneWidth + (laneWidth - carWidth) / 2,
+                initYmin,
+                carWidth,
+                carHeight,
+                5,
+                //color: "blue",
+                "files/images/PNG/Cars/car_blue_small_1.png",
+                0,
+                0,
+                function (ctx) {
+                    ctx.drawImage(this.img, this.x, this.y);
+                }
+            )
+        }
 
         function createLane(id) {
             return {
@@ -88,72 +291,42 @@
             }
         }
 
-        ;
-
-        var gamegoing = false;
-        var initialized = false;
-
-        function init() {
-            startTime = Date.now();
-
-            let laneid = Math.floor(Math.random() * 3);
-            playerCar = {
-                id: laneid,
-                x: laneid * laneWidth + (laneWidth - carWidth) / 2,
-                y: initYmin,
-                width: carWidth,
-                height: carHeight,
-                speed: 5,
-                //color: "blue",
-                img: "../Race/files/images/PNG/Cars/car_blue_small_1.png"
-
-            };
-            //
-
-
-            //otherCars = [];
-            createOtherCars();
-            createFinishLine();
-
-            gamegoing = true;
-            initialized = true;
-
-            update();
-
-        }
-
-        function drawCar(car) {
-            //ctx.fillStyle = car.color;
-            //ctx.fillRect(car.x, car.y, car.width, car.height);
-            let img = new Image()
-            img.src = car.img;
-            ctx.drawImage(img, car.x, car.y)
-        }
 
         function createFinishLine() {
             let finish = createLane('finish');
             finish.speed = playerCar.speed;
 
             finish.cars.push(
-                {
-                    x: 0,
-                    y: finishline,
-                    width: canvas.width,
-                    height: 2,
-                    //speed: otherCarSpeed + Math.random() * 2
-                    speed: finish.speed,
-                    color: "grey",
-                    //img: "../Race/files/images/PNG/Cars/car_black_small_1.png"
+                createCarObject(
+                    "finishline",
+                    'finish',
+                    21,//
+                    finishline,//
+                    500, //width
+                    20, //height
+                    finish.speed, //speed
+                    "files/images/PNG/Objects/finishline.png", //img
+                    0,
+                    0,
+                    function (ctx) {
 
-                }
+                        let car = this;
+
+                        car.y += playerCar.speed;
+                        if (car.y >= -car.height || car.y < canvas.heigth + car.height) // to avoid unnescessary drawing operation
+                            ctx.drawImage(this.img, this.x + this.shiftx, this.y + this.shifty)
+
+                    }
+                )
             )
 
-            lanes.push(finish);
+            bg_objects.push(finish);
 
         }
+
         function createOtherCars() {
 
-            lanes = Array(numberOfLanes);
+
             for (let i = 0; i < maxOtherCars; i++) {
                 let lane = createLane(Math.floor(Math.random() * numberOfLanes));
                 if (lanes[lane.id])
@@ -161,20 +334,25 @@
                 else
                     lanes[lane.id] = lane;
 
-                let car = {
-                    x: lane.id * laneWidth + (laneWidth - carWidth) / 2,
-                    y: (lane.last_car_y - carBuffer) - carHeight - Math.random() * canvas.height,
-                    width: carWidth,
-                    height: carHeight,
-                    //speed: otherCarSpeed + Math.random() * 2
-                    speed: lane.speed + Math.random() * 3,
-                    color: "red",
-                    img: "../Race/files/images/PNG/Cars/car_black_small_1.png"
-                };
+
+
+                let car = createCarObject(//createCarObject(id, x,y,width,height,speed,img)
+                    `othercar`,
+                    lane.id,//id
+                    lane.id * laneWidth + (laneWidth - carWidth) / 2, //x
+                    (lane.last_car_y - carBuffer) - carHeight - Math.random() * canvas.height,//y
+                    carWidth, //width
+                    carHeight, // height
+                    lane.speed, //speed
+                    "files/images/PNG/Cars/car_black_small_1.png"
+                );
                 lane.cars.push(car);
                 lane.last_car_y = car.y
                 console.log(`Creating a car (attempt ${i + 1}\nlanes: ${JSON.stringify(lanes)}}`)
             }
+            updateObjectsInOrder.push(lanes);
+
+            //return lanes;
         }
 
         // Function to check for collision between two rectangles
@@ -190,73 +368,31 @@
             if (gamegoing) {
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-                drawCar(playerCar, 'blue');
-                console.log(`Drawing objects for playerCar: speed:${playerCar.speed}, y:${playerCar.y}`)
-
-                lanes.forEach(lane => {
-
-
-
-                    lane.cars.forEach(car => {
-                        switch (lane.id) {
-                            case "finish":
-                                car.y += playerCar.speed;
-
-                                break;
-                            default:
-                                car.y += lane.speed;
-                        }
-                        console.log(`Drawing objects for lane: ${lane.id}, speed:${lane.speed}, y:${car.y}`)
-
-                        /*
-                        if (car.y > canvas.height) {
-                            //car.y = -carHeight;
-                            //car.speed = otherCarSpeed + Math.random() * 2;
-                        }
-*/
-                        drawCar(car);
-
-                        if (isColliding(car, playerCar)) {
-                            gamegoing = false;
-                            initialized = false;
-                            switch (lane.id) {
-                                case "finish":
-                                    console.log("Finished!")
-                                    //console.log(`Finished in: ${Date.now() - startTime}`)
-                                    break;
-                                default:
-                                    console.log("Collision detected!");
-
+                updateObjectsInOrder.forEach(obj =>
+                    obj.forEach(lane => {
+                        lane.cars.forEach(car => {
+                            car.drawImage(ctx)
+                            //console.log(`lane:${lane.id} car:${JSON.stringify(car)}, playerCar.speed:${playerCar.speed}`)
+                            if (isColliding(car, playerCar)) {
+                                let e = events.collision(car)
+                                document.dispatchEvent(e);
                             }
-                            console.log(`Finished in: ${Date.now() - startTime}`)
-                            ctx.font = '20px Arial bold';
-                            ctx.fillStyle = 'white'
+                        })
+                    })
+                )
 
-                            // Draw text on the canvas
-                            ctx.fillText(`Finished in: ${Date.now() - startTime}`, 100, 50);
-
-                        }
-
-
-                    });
-
-                })
-
+                playerCar.drawImage(ctx);
+                let sp = playerCar.speed * 12;
+                maxSpeedStat = (sp > maxSpeedStat) ? sp : maxSpeedStat
+                info.textContent = `Speed: ${playerCar.speed * 12} mph, max speed: ${maxSpeedStat}, best time:${bestTime} sec`
+                console.log(`gamegoing: ${gamegoing}`)
                 requestAnimationFrame(update);
-
             }
 
-            console.log(`gamegoing: ${gamegoing}`)
         }
 
         function movePlayerCar(event) {
-            /*
-            if (event.key === 'ArrowLeft' && playerCar.x > 0) {
-                playerCar.x -= laneWidth;
-            } else if (event.key === 'ArrowRight' && playerCar.x < canvas.width - laneWidth) {
-                playerCar.x += laneWidth;
-            }
-*/
+
             switch (event.code) {
                 case 'ArrowLeft':
                     if (playerCar.x > 0 && playerCar.x >= laneWidth) {
@@ -281,6 +417,8 @@
 
                     })
                     playerCar.speed += shift_speed
+                    playerCar.speed = playerCar.speed > maxSpeed ? maxSpeed : playerCar.speed;
+
                     if (playerCar.y > initYmax)
                         playerCar.y -= shift_y;
                     else
@@ -295,6 +433,8 @@
 
                     })
                     playerCar.speed -= shift_speed
+                    playerCar.speed = playerCar.speed < minSpeed ? minSpeed : playerCar.speed;
+
                     if (playerCar.y < initYmin)
                         playerCar.y += shift_y;
                     else
@@ -327,8 +467,38 @@
 
             }
         }
+        function processEvent(event) {
+            console.log(`Event [${event.type}] detected, details: ${JSON.stringify(event.detail)}`)
+            gamegoing = false;
+            initialized = false;
+            let finishtime = Math.floor((Date.now() - startTime) / 1000);
+            switch (event.detail.type) {
+                case "background":
+                    gamegoing = true;
+                    initialized = true;
+                    break;
+                case "othercar":
+                    console.log(`Collision detected with ${JSON.stringify(event.detail)}`)
+                    console.log(`Crashed in: ${finishtime} sec`)
+                    ctx.fillText(`Crashed in: ${finishtime} sec`, 100, 50);
+                    break;
+                case "finishline":
+
+                    ctx.font = '20px Arial bold';
+                    ctx.fillStyle = 'white'
+
+                    // Draw text on the canvas
+                    bestTime = (finishtime < bestTime||bestTime==0) ? finishtime : bestTime;
+
+                    ctx.fillText(`Finished in: ${finishtime} sec`, 100, 50);
+                    break;
+
+            }
+
+        }
 
         document.addEventListener('keydown', movePlayerCar);
+        document.addEventListener('collision', processEvent);
 
 
         // createOtherCars();
